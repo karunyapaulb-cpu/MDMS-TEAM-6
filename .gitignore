@@ -22,3 +22,10 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+**/bin/
+**/obj/
+.vs/
+*.user
+.env.local
+appsettings.Local.json
