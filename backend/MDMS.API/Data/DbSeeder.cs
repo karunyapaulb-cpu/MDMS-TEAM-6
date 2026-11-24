@@ -1,4 +1,5 @@
 using MDMS.API.Models;
+using Microsoft.EntityFrameworkCore;
 
 namespace MDMS.API.Data;
 
@@ -26,13 +27,14 @@ public static class DbSeeder
         };
 
         var today = new DateTime(2026, 11, 24);
-        var firstMonth = new DateTime(2025, 12, 1);
+        var firstMonth = new DateTime(2025, 11, 1);
 
         db.Users.Add(new User
         {
             Name = "Enterprise Admin",
             Email = "enterprise@mdms.example",
-            Role = "Enterprise"
+            Role = "Enterprise",
+            Status = "Active"
         });
 
         for (int z = 0; z < 4; z++)
@@ -43,7 +45,8 @@ public static class DbSeeder
                 Location = zoneNames[z],
                 Pincode = pincodes[z],
                 Admin = $"{zoneNames[z]} Admin",
-                Description = "Electricity distribution zone"
+                Description = "Electricity distribution zone",
+                Status = "Active"
             };
 
             db.Zones.Add(zone);
@@ -54,9 +57,11 @@ public static class DbSeeder
                 Name = zone.Admin,
                 Email = $"zone{z + 1}@mdms.example",
                 Role = "ZoneAdmin",
-                ZoneId = zone.Id
+                ZoneId = zone.Id,
+                Status = "Active"
             });
 
+            // Create 12 customers per zone
             for (int u = 1; u <= 12; u++)
             {
                 var user = new User
@@ -65,12 +70,16 @@ public static class DbSeeder
                     Email = $"customer{z + 1}_{u}@mdms.example",
                     Phone = $"90000{z + 1}{u:D4}",
                     Role = "Consumer",
-                    ZoneId = zone.Id
+                    ZoneId = zone.Id,
+
+                    // Every 12th customer is deactivated
+                    Status = u == 12 ? "Deactivated" : "Active"
                 };
 
                 db.Users.Add(user);
                 db.SaveChanges();
 
+                // First two customers have two meters each
                 int meterCount = u <= 2 ? 2 : 1;
 
                 for (int m = 1; m <= meterCount; m++)
@@ -83,12 +92,16 @@ public static class DbSeeder
                         Address = $"{u}, Main Road, {zone.Name}",
                         InstalledDate = firstMonth,
                         TariffCategory = "Domestic",
-                        LastReading = random.Next(2000, 5000)
+                        LastReading = random.Next(2000, 5000),
+
+                        // Deactivate meters of the 12th customer
+                        Status = u == 12 ? "Deactivated" : "Active"
                     });
                 }
 
                 double reading = 1000;
 
+                // Generate 12 months of bills per customer
                 for (int b = 0; b < 12; b++)
                 {
                     var month = firstMonth.AddMonths(b);
@@ -99,13 +112,18 @@ public static class DbSeeder
                         UserId = user.Id,
                         Month = month,
                         DueDate = dueDate,
-                        Status = b == 11 ? "Pending"
-                            : b == 10 && u % 3 == 0
-                                ? "Overdue" : "Paid"
+
+                        Status = b == 11
+                            ? (u % 3 == 0 ? "Overdue" : "Pending")
+                            : "Paid"
                     };
 
                     if (bill.Status == "Paid")
-                        bill.PaidOn = month.AddMonths(1).AddDays(4);
+                    {
+                        bill.PaidOn = month
+                            .AddMonths(1)
+                            .AddDays(4);
+                    }
 
                     db.Bills.Add(bill);
                     db.SaveChanges();
@@ -115,9 +133,12 @@ public static class DbSeeder
 
                     decimal total = 0;
 
+                    // Generate daily bill readings
                     for (int d = 1; d <= days; d++)
                     {
-                        double units = random.Next(50, 180) / 10.0;
+                        double units =
+                            random.Next(50, 180) / 10.0;
+
                         reading += units;
 
                         decimal cost = (decimal)units * 6.5m;
@@ -128,6 +149,7 @@ public static class DbSeeder
                             BillId = bill.Id,
                             Date = new DateTime(
                                 month.Year, month.Month, d),
+
                             Reading = Math.Round(reading, 2),
                             Consumption = units,
                             Cost = cost
@@ -140,6 +162,7 @@ public static class DbSeeder
                 db.SaveChanges();
             }
 
+            // Zone-level settings
             db.Settings.Add(new Setting
             {
                 ZoneId = zone.Id,
@@ -154,58 +177,103 @@ public static class DbSeeder
 
         db.SaveChanges();
 
-        var meters = db.Meters.ToList();
-        var customers = db.Users
-            .Where(x => x.Role == "Consumer").ToList();
+        var meters = db.Meters
+            .OrderBy(x => x.Id)
+            .ToList();
 
+        var customers = db.Users
+            .Where(x => x.Role == "Consumer")
+            .OrderBy(x => x.Id)
+            .ToList();
+
+        var zones = db.Zones
+            .OrderBy(x => x.Id)
+            .ToList();
+
+        var admins = db.Users
+            .Where(x => x.Role == "ZoneAdmin"
+                     || x.Role == "Enterprise")
+            .OrderBy(x => x.Id)
+            .ToList();
+
+        // Generate daily and hourly meter readings
         foreach (var meter in meters)
         {
-            double value = meter.LastReading - 24;
+            double value = 1000;
 
-            for (int hour = 0; hour < 24; hour++)
+            for (int day = 365; day >= 1; day--)
             {
-                double units = random.Next(2, 20) / 10.0;
-                value += units;
+                var date = today.AddDays(-day);
 
-                db.Readings.Add(new Reading
+                // Last two days have hourly readings
+                int intervals = day <= 2 ? 24 : 1;
+
+                for (int hour = 0; hour < intervals; hour++)
                 {
-                    MeterId = meter.Id,
-                    Date = today.AddDays(-1).AddHours(hour),
-                    Units = units,
-                    Value = Math.Round(value, 2),
-                    Notes = "Normal"
-                });
+                    double units = intervals == 24
+                        ? random.Next(2, 12) / 10.0
+                        : random.Next(60, 180) / 10.0;
+
+                    value += units;
+
+                    db.Readings.Add(new Reading
+                    {
+                        MeterId = meter.Id,
+                        Date = date.AddHours(hour),
+                        Units = units,
+                        Value = Math.Round(value, 2),
+                        Notes = "Normal"
+                    });
+                }
             }
 
             meter.LastReading = Math.Round(value, 2);
         }
 
+        // Generate 24 alerts across all four zones
         for (int i = 0; i < 24; i++)
         {
-            var meter = meters[i % meters.Count];
+            var zone = zones[i % zones.Count];
+
+            var zoneMeters = meters
+                .Where(x => x.ZoneId == zone.Id)
+                .ToList();
+
+            var meter = zoneMeters[
+                random.Next(zoneMeters.Count)];
 
             db.Alerts.Add(new Alert
             {
                 MeterId = meter.Id,
                 ZoneId = meter.ZoneId,
+
                 Message = i % 2 == 0
                     ? "High consumption"
                     : "Abnormal reading",
+
                 Severity = i % 3 == 0
-                    ? "Critical" : "Warning",
-                Status = i % 4 == 0
-                    ? "Resolved" : "Pending",
+                    ? "Critical"
+                    : "Warning",
+
+                Status = (i / zones.Count) % 4 == 0
+                    ? "Resolved"
+                    : "Pending",
+
                 Timestamp = today.AddHours(-i)
             });
         }
 
+        // Notification types
         string[] types =
         {
-            "Bill generated", "Payment due soon",
-            "Payment received", "High consumption",
+            "Bill generated",
+            "Payment due soon",
+            "Payment received",
+            "High consumption",
             "Maintenance"
         };
 
+        // Generate 20 notifications for the demo customer
         for (int i = 0; i < 20; i++)
         {
             db.Notifications.Add(new Notification
@@ -218,24 +286,41 @@ public static class DbSeeder
             });
         }
 
+        // Generate 40 audit logs
         for (int i = 0; i < 40; i++)
         {
+            var admin = admins[i % admins.Count];
+            var meter = meters[i % meters.Count];
+
             db.AuditLogs.Add(new AuditLog
             {
-                User = "Zone Admin",
-                Action = i % 2 == 0 ? "View" : "Update",
-                Resource = $"Meter {i + 1}",
-                Status = "Success",
+                User = admin.Name,
+
+                Action = i % 2 == 0
+                    ? "View"
+                    : "Update",
+
+                Resource = meter.MeterNumber,
+
+                Status = i % 5 == 0
+                    ? "Failed"
+                    : "Success",
+
                 Timestamp = today.AddHours(-i)
             });
         }
 
+        // Enterprise-level settings
         db.Settings.Add(new Setting
         {
             RetentionDays = 365,
             AutoLogoutMinutes = 30,
             AuditRetentionDays = 180,
-            EmailEnabled = true
+            EmailEnabled = true,
+            SmsEnabled = true,
+            TimeZone = "Asia/Kolkata",
+            Language = "English",
+            Currency = "INR"
         });
 
         db.SaveChanges();
