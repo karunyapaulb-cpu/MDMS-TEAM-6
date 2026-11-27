@@ -7,6 +7,7 @@ export interface Column<T> {
   header: string;
   render: (row: T) => ReactNode;
   sortValue?: (row: T) => string | number;
+  sortKey?: string;
 }
 
 interface Props<T> {
@@ -22,6 +23,7 @@ interface Props<T> {
   onSearch?: (value: string) => void;
   actions?: (row: T) => ReactNode;
   selectable?: boolean;
+  onSort?: (key: string, direction: "asc" | "desc") => void;
 }
 
 export default function DataTable<T>({
@@ -37,6 +39,7 @@ export default function DataTable<T>({
   onSearch,
   actions,
   selectable = false,
+  onSort,
 }: Props<T>) {
   const [sort, setSort] = useState(-1);
   const [ascending, setAscending] = useState(true);
@@ -46,7 +49,8 @@ export default function DataTable<T>({
 
   const sortValue = columns[sort]?.sortValue;
 
-  if (sortValue) {
+  // Client-side sorting
+  if (sortValue && !onSort) {
     sortedRows.sort((a, b) => {
       const x = sortValue(a);
       const y = sortValue(b);
@@ -84,13 +88,25 @@ export default function DataTable<T>({
                 {columns.map((column, i) => (
                   <th key={column.header}>
                     <button
-                      disabled={!column.sortValue}
+                      type="button"
+                      disabled={onSort ? !column.sortKey : !column.sortValue}
                       onClick={() => {
+                        const nextAscending = sort === i ? !ascending : true;
+
                         setSort(i);
-                        setAscending(sort === i ? !ascending : true);
+                        setAscending(nextAscending);
+
+                        // Server-side sorting
+                        if (onSort && column.sortKey) {
+                          onSort(
+                            column.sortKey,
+                            nextAscending ? "asc" : "desc",
+                          );
+                        }
                       }}
                     >
                       {column.header}
+
                       {sort === i ? (ascending ? " ↑" : " ↓") : ""}
                     </button>
                   </th>
@@ -110,9 +126,10 @@ export default function DataTable<T>({
                         checked={selected.includes(rowKey(row))}
                         onChange={(e) => {
                           const key = rowKey(row);
+                          const checked = e.target.checked;
 
                           setSelected((old) =>
-                            e.target.checked
+                            checked
                               ? [...old, key]
                               : old.filter((x) => x !== key),
                           );
@@ -135,7 +152,11 @@ export default function DataTable<T>({
 
       {onPageChange && (
         <div className="pagination">
-          <button disabled={page <= 1} onClick={() => onPageChange(page - 1)}>
+          <button
+            type="button"
+            disabled={page <= 1}
+            onClick={() => onPageChange(page - 1)}
+          >
             Previous
           </button>
 
@@ -145,6 +166,7 @@ export default function DataTable<T>({
           </span>
 
           <button
+            type="button"
             disabled={page * pageSize >= (total ?? rows.length)}
             onClick={() => onPageChange(page + 1)}
           >

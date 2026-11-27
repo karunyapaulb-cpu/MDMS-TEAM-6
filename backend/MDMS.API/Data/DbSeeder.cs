@@ -29,6 +29,7 @@ public static class DbSeeder
         var today = new DateTime(2026, 11, 24);
         var firstMonth = new DateTime(2025, 11, 1);
 
+        // Create Enterprise Admin
         db.Users.Add(new User
         {
             Name = "Enterprise Admin",
@@ -37,6 +38,7 @@ public static class DbSeeder
             Status = "Active"
         });
 
+        // Create four zones
         for (int z = 0; z < 4; z++)
         {
             var zone = new Zone
@@ -52,6 +54,7 @@ public static class DbSeeder
             db.Zones.Add(zone);
             db.SaveChanges();
 
+            // Create Zone Admin
             db.Users.Add(new User
             {
                 Name = zone.Admin,
@@ -71,8 +74,6 @@ public static class DbSeeder
                     Phone = $"90000{z + 1}{u:D4}",
                     Role = "Consumer",
                     ZoneId = zone.Id,
-
-                    // Every 12th customer is deactivated
                     Status = u == 12 ? "Deactivated" : "Active"
                 };
 
@@ -93,9 +94,9 @@ public static class DbSeeder
                         InstalledDate = firstMonth,
                         TariffCategory = "Domestic",
                         LastReading = random.Next(2000, 5000),
-
-                        // Deactivate meters of the 12th customer
-                        Status = u == 12 ? "Deactivated" : "Active"
+                        Status = u == 12
+                            ? "Deactivated"
+                            : "Active"
                     });
                 }
 
@@ -177,19 +178,23 @@ public static class DbSeeder
 
         db.SaveChanges();
 
+        // Retrieve generated meters
         var meters = db.Meters
             .OrderBy(x => x.Id)
             .ToList();
 
+        // Retrieve generated customers
         var customers = db.Users
             .Where(x => x.Role == "Consumer")
             .OrderBy(x => x.Id)
             .ToList();
 
+        // Retrieve generated zones
         var zones = db.Zones
             .OrderBy(x => x.Id)
             .ToList();
 
+        // Retrieve admins - declared only once
         var admins = db.Users
             .Where(x => x.Role == "ZoneAdmin"
                      || x.Role == "Enterprise")
@@ -230,15 +235,19 @@ public static class DbSeeder
             meter.LastReading = Math.Round(value, 2);
         }
 
+        // STEP 49.2
         // Generate 24 alerts across all four zones
         for (int i = 0; i < 24; i++)
         {
+            // Select zones in rotation
             var zone = zones[i % zones.Count];
 
+            // Retrieve only meters belonging to that zone
             var zoneMeters = meters
                 .Where(x => x.ZoneId == zone.Id)
                 .ToList();
 
+            // Select a random meter from the selected zone
             var meter = zoneMeters[
                 random.Next(zoneMeters.Count)];
 
@@ -287,22 +296,26 @@ public static class DbSeeder
         }
 
         // Generate 40 audit logs
+        // Use the admins list already declared above
         for (int i = 0; i < 40; i++)
         {
             var admin = admins[i % admins.Count];
+
             var meter = meters[i % meters.Count];
 
             db.AuditLogs.Add(new AuditLog
             {
                 User = admin.Name,
 
-                Action = i % 2 == 0
+                Action = i % 3 == 0
                     ? "View"
-                    : "Update",
+                    : i % 3 == 1
+                        ? "Update"
+                        : "Generate report",
 
                 Resource = meter.MeterNumber,
 
-                Status = i % 5 == 0
+                Status = i % 7 == 0
                     ? "Failed"
                     : "Success",
 

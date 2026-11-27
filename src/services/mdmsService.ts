@@ -18,6 +18,8 @@ export interface MeterFilters {
   search?: string;
   page?: number;
   pageSize?: number;
+  sortBy?: string;
+sortDirection?: "asc" | "desc";
 }
 
 export interface ReadingFilters {

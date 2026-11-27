@@ -35,6 +35,9 @@ export default function MeterTable({
   const [status, setStatus] = useState("");
   const [page, setPage] = useState(1);
 
+  const [sortBy, setSortBy] = useState("id");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+
   const [formOpen, setFormOpen] = useState(initialAdd);
   const [editing, setEditing] = useState<Meter | null>(null);
   const [confirm, setConfirm] = useState<Meter | null>(null);
@@ -49,8 +52,10 @@ export default function MeterTable({
         search,
         page,
         pageSize: 10,
+        sortBy,
+        sortDirection,
       }),
-    [zoneId, userId, status, search, page]
+    [zoneId, userId, status, search, page, sortBy, sortDirection],
   );
 
   const { data, loading, error } = useApi(request);
@@ -58,22 +63,25 @@ export default function MeterTable({
   const columns: Column<Meter>[] = [
     {
       header: "Meter ID",
-      render: (m) => m.meterNumber,
-      sortValue: (m) => m.meterNumber,
+      render: (row) => row.meterNumber,
+      sortValue: (row) => row.meterNumber,
+      sortKey: "meterNumber",
     },
     {
       header: "Owner",
-      render: (m) => m.owner,
-      sortValue: (m) => m.owner ?? "",
+      render: (row) => row.owner,
+      sortValue: (row) => row.owner ?? "",
+      sortKey: "owner",
     },
     {
       header: "Status",
       render: (m) => <StatusBadge status={m.status} />,
     },
     {
-      header: "Last reading",
-      render: (m) => `${m.lastReading} kWh`,
-      sortValue: (m) => m.lastReading,
+      header: "Last Reading",
+      render: (row) => row.lastReading,
+      sortValue: (row) => row.lastReading ?? 0,
+      sortKey: "lastReading",
     },
   ];
 
@@ -103,6 +111,7 @@ export default function MeterTable({
 
         {allowAdd && (
           <button
+            type="button"
             onClick={() => {
               setEditing(null);
               setFormOpen(true);
@@ -121,11 +130,17 @@ export default function MeterTable({
         rowKey={(m) => m.id}
         loading={loading}
         page={page}
+        pageSize={10}
         total={data?.total ?? 0}
         onPageChange={setPage}
         search={search}
         onSearch={(value) => {
           setSearch(value);
+          setPage(1);
+        }}
+        onSort={(key, direction) => {
+          setSortBy(key);
+          setSortDirection(direction);
           setPage(1);
         }}
         selectable
@@ -143,6 +158,7 @@ export default function MeterTable({
               {allowAdd && (
                 <>
                   <button
+                    type="button"
                     onClick={() => {
                       setEditing(meter);
                       setFormOpen(true);
@@ -151,10 +167,8 @@ export default function MeterTable({
                     Edit
                   </button>
 
-                  <button onClick={() => setConfirm(meter)}>
-                    {meter.status === "Active"
-                      ? "Deactivate"
-                      : "Activate"}
+                  <button type="button" onClick={() => setConfirm(meter)}>
+                    {meter.status === "Active" ? "Deactivate" : "Activate"}
                   </button>
                 </>
               )}
@@ -181,7 +195,7 @@ export default function MeterTable({
             label="Meter number"
             defaultValue={editing?.meterNumber}
             required
-            pattern="MTR-[A-Za-z0-9-]+"
+            pattern="MTR-[A-Za-z0-9\-]+"
             placeholder="MTR-001"
           />
 
@@ -193,16 +207,12 @@ export default function MeterTable({
             required
           />
 
-          <Input
-            label="Address"
-            defaultValue={editing?.address}
-            required
-          />
+          <Input label="Address" defaultValue={editing?.address} required />
 
           <Input
             label="Installed date"
             type="date"
-            defaultValue={editing?.installedDate.slice(0, 10)}
+            defaultValue={editing?.installedDate?.slice(0, 10)}
             required
           />
 
@@ -230,10 +240,7 @@ export default function MeterTable({
         }}
       />
 
-      <Toast
-        message={message}
-        onClose={() => setMessage("")}
-      />
+      <Toast message={message} onClose={() => setMessage("")} />
     </>
   );
 }
