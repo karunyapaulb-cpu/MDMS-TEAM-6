@@ -1,3 +1,4 @@
+
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using MDMS.API.Data;
@@ -16,11 +17,15 @@ public class MetersController(MdmsDbContext db)
         string? status,
         string? search,
         int page = 1,
-        int pageSize = 10)
+        int pageSize = 10,
+        string sortBy = "id",
+        string sortDirection = "asc")
     {
+        // 1. Validate pagination
         page = Math.Max(1, page);
         pageSize = Math.Clamp(pageSize, 1, 100);
 
+        // 2. Create query
         var query =
             from meter in db.Meters
             join user in db.Users
@@ -42,6 +47,7 @@ public class MetersController(MdmsDbContext db)
                 meter.TariffCategory
             };
 
+        // 3. Apply filters
         if (zoneId.HasValue)
             query = query.Where(x => x.ZoneId == zoneId);
 
@@ -56,13 +62,43 @@ public class MetersController(MdmsDbContext db)
                 x => x.MeterNumber.Contains(search)
                   || x.Owner.Contains(search));
 
+        // 4. Count filtered records
         int total = await query.CountAsync();
 
-        var items = await query.OrderBy(x => x.Id)
+        // 5. Determine sorting direction
+        bool desc = string.Equals(
+            sortDirection,
+            "desc",
+            StringComparison.OrdinalIgnoreCase);
+
+        // 6. Apply sorting
+        var sortedQuery = sortBy switch
+        {
+            "meterNumber" => desc
+                ? query.OrderByDescending(x => x.MeterNumber)
+                : query.OrderBy(x => x.MeterNumber),
+
+            "owner" => desc
+                ? query.OrderByDescending(x => x.Owner)
+                : query.OrderBy(x => x.Owner),
+
+            "lastReading" => desc
+                ? query.OrderByDescending(x => x.LastReading)
+                : query.OrderBy(x => x.LastReading),
+
+            _ => desc
+                ? query.OrderByDescending(x => x.Id)
+                : query.OrderBy(x => x.Id)
+        };
+
+        // 7. Apply pagination
+        var items = await sortedQuery
+            .ThenBy(x => x.Id)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync();
 
+        // 8. Return response
         return Ok(new { items, total, page, pageSize });
     }
 

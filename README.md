@@ -1,75 +1,110 @@
-# React + TypeScript + Vite
+# MDMS – Meter Data Management System
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+## Phase 1: Foundation and Navigation
 
-Currently, two official plugins are available:
+MDMS is a web application for managing electricity consumption, smart meters, customer billing, distribution zones and enterprise-level monitoring.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Technology Stack
 
-## React Compiler
+- React
+- TypeScript
+- Vite
+- React Router DOM
+- Axios
+- Recharts
+- ASP.NET Core Web API
+- Entity Framework Core
+- Microsoft SQL Server
+- Git and GitHub
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## User Roles
 
-## Expanding the ESLint configuration
+### End-user
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+- Dashboard
+- Bills and Payments
+- Bill Details
+- Meter Data
+- Alerts and Notifications
+- Profile and Settings
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+### Zone Admin
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+- Dashboard
+- Meter Management
+- Meter Details
+- User Management
+- Reports and Analytics
+- Alerts
+- Settings
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+### Enterprise
 
-```
+- Dashboard
+- Zone Management
+- Zone Details
+- Meter Management
+- User and Role Management
+- Reports and Analytics
+- Alerts
+- Audit Logs
+- Settings and Configuration
 
-You can also install [eslint-plugin-react-x](https://npmx.dev/package/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://npmx.dev/package/eslint-plugin-react-dom) for React-specific lint rules:
+## Prerequisites
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+- Node.js and npm
+- .NET 10 SDK
+- Microsoft SQL Server
+- SQL Server Management Studio
+- Git
+- Visual Studio Code
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## Setup Instructions
 
-```
+Clone the shared repository and run npm install from the project root.
+
+Navigate to backend/MDMS.API and configure the SQL Server connection string in appsettings.json.
+
+Restore the backend packages using dotnet restore.
+
+Install the compatible Entity Framework Core CLI if required.
+
+Run dotnet ef database update to create the database.
+
+Start the backend using:
+
+    dotnet run --urls http://localhost:5000
+
+Open a separate terminal in the project root and start the frontend:
+
+    npm run dev
+
+Frontend: http://localhost:5173
+
+Backend: http://localhost:5000/api
+
+## Phase 1 Scope
+
+Phase 1 focuses on navigation, reusable components, read-only API integration, dashboards, tables, charts and form validation.
+
+Authentication is simulated using a temporary role switcher. Forms validate user input but do not save changes.
+
+Real authentication, authorisation, payment processing, emails, live monitoring and file export are outside the current phase.
+
+The SQL Server database contains generated demonstration data only.
+
+## Team Contributions
+
+Person 1: Application foundation, authentication, end-user pages, shared profile and routing.
+
+Person 2: SQL Server database, ASP.NET Core Web API, analytics and zone admin pages.
+
+Person 3: Shared reusable components and enterprise pages.
+
+## Git Workflow
+
+Each task is developed on a separate feature branch. Changes are submitted through pull requests, reviewed by teammates and merged into main.
+
+## Future Development
+
+The application will be extended according to the requirements released in Phase 2 and Phase 3.
