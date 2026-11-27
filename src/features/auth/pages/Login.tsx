@@ -23,9 +23,7 @@ export default function Login() {
       <form
         className="auth-card"
         onSubmit={handleSubmit(() => {
-          setMessage(
-            "Validation successful. Select a demo role below."
-          );
+          setMessage("Validation successful. Select a demo role below.");
         })}
       >
         <h1>MDMS</h1>
@@ -56,9 +54,7 @@ export default function Login() {
           })}
         />
 
-        <small className="error">
-          {errors.password?.message}
-        </small>
+        <small className="error">{errors.password?.message}</small>
 
         <button type="button" onClick={() => setShow(!show)}>
           {show ? "Hide password" : "Show password"}
